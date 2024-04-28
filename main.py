@@ -60,3 +60,51 @@ async def root(request: Request):
     user = get_user(user_token)
     return templates.TemplateResponse('main.html', {'request': request})
 
+def get_twitter_list(followers, username):
+    response = firestore_db.collection('Tweet').get()
+    tweet_list = []
+    for tweet in response:
+        data = tweet.to_dict()
+        data["id"] = tweet.id
+        if data["username"] == username or (followers is not None and data["username"] in followers):
+            tweet_list.append(data)
+    tweet_list.sort(key=lambda x: x['date'], reverse=True)
+    latest_20_tweets = tweet_list[:20]
+    return latest_20_tweets
+
+
+@app.get("/home", response_class=HTMLResponse)
+async def home(request: Request, token: str = Cookie(None)):
+    error=None
+    user_token = validate_firebase_token(token)
+    if not user_token:
+        return RedirectResponse(url="/", status_code=303)
+    user_ref = get_user(user_token)
+    user_data = user_ref.get().to_dict()
+    username = user_data.get('username') if user_data else None
+    userId = user_data.get('user_id') if user_data else None
+    followers = user_data.get('followers') if user_data else None
+    tweet_list = get_twitter_list(followers,username)
+    if request.query_params.get("error"):
+        error = request.query_params.get("error")
+    for tweet in tweet_list:
+        tweet['date'] = tweet['date'].isoformat()
+    tweet_list_json = json.dumps(tweet_list)
+    return templates.TemplateResponse('home.html', {'request': request, "token": token, "username": username, "tweetList": tweet_list_json,"error":error,"userId":userId})
+
+@app.post("/set-username")
+async def set_username(request: Request):
+    form_data = await request.form()
+    username = form_data['username']
+    id_token = request.cookies.get("token")
+    user_token = validate_firebase_token(id_token)
+    user_id = user_token.get('user_id') if user_token else None
+    user_ref = firestore_db.collection('User').document(user_id)
+    user_data = user_ref.get().to_dict() if user_ref.get().exists else {}
+    if 'username' in user_data and user_data['username']:
+        return RedirectResponse(url="/home?error=User Already Exists", status_code=303)
+    existing_usernames = firestore_db.collection('User').where('username', '==', username).get()
+    if existing_usernames:
+        return RedirectResponse(url="/home?error=User Already Exists", status_code=303)
+    user_ref.update({'username': username})
+    return RedirectResponse(url="/home", status_code=303)

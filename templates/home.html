@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Twitter Implementation</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+
+    <script
+      type="module"
+      src="{{ url_for('static', path='/firebase-login.js') }}"
+    ></script>
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+
+      .container {
+        padding: 20px;
+      }
+
+      h1,
+      h2 {
+        margin-bottom: 20px;
+      }
+
+      .tweet-image {
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+      }
+
+      .card {
+        overflow: hidden;
+        width: 30%;
+        height: 20%;
+        margin: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <div id="login"></div>
+      <div id="login-box"></div>
+      <div id="sign-up"></div>
+      <div class="row">
+        <div class="col-md-6">
+          <h1>Twitter Implementation</h1>
+        </div>
+        <div class="col-md-6 text-right">
+          <h2>{{ username }}</h2>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12 text-right">
+          <button id="addTweetButton" class="btn btn-primary">Add Tweet</button>
+          <button id="usersButton" class="btn btn-info">Users</button>
+          <button id="sign-out" type="button" class="btn btn-danger">
+            Sign Out
+          </button>
+        </div>
+      </div>
+
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <input
+            type="text"
+            class="form-control"
+            id="searchInput"
+            placeholder="Search by username or content"
+          />
+        </div>
+      </div>
+
+      <div id="tweetContainer" class="mt-4"></div>
+
+      {% if not username %}
+      <div class="modal" id="setUsernameModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Set Username</h5>
+            </div>
+            <div class="modal-body">
+              {% if error %}
+              <div style="color: red">{{ error }}</div>
+              {% endif %}
+              <form id="setUsernameForm" method="post" action="/set-username">
+                <div class="form-group">
+                  <label for="username">Username:</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="username"
+                    name="username"
+                    required
+                  />
+                </div>
+                <button type="submit" class="btn btn-primary">Submit</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="modal" id="tweetModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="tweetModalLabel">Add Tweet</h5>
+            <button
+              type="button"
+              class="close"
+              data-dismiss="modal"
+              aria-label="Close"
+            >
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form
+              id="tweetForm"
+              enctype="multipart/form-data"
+              action="/add-tweet"
+              method="post"
+            >
+              <input type="hidden" id="tweetId" name="tweetId" />
+              <div class="form-group">
+                <label for="tweetContent">Tweet Content:</label>
+                <textarea
+                  class="form-control"
+                  id="tweetContent"
+                  name="tweetContent"
+                  rows="3"
+                  maxlength="140"
+                  required
+                ></textarea>
+                <div id="charCount"></div>
+              </div>
+              <div class="form-group">
+                <label for="tweetImage">Upload Image (PNG or JPG):</label>
+                <input
+                  type="file"
+                  class="form-control-file"
+                  id="tweetImage"
+                  name="tweetImage"
+                  accept=".png, .jpg"
+                />
+                <div id="tweetImagePreview"></div>
+              </div>
+              <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        {% if not username %}
+        $('#setUsernameModal').modal('show');
+        {% endif %}
+
+
+        var tweets = {{ tweetList | safe
+      }};
+
+      var tweetContainer = document.getElementById('tweetContainer');
+      var originalTweets = tweets.slice()
+      renderTweets(tweets);
+
+
+      $('#searchInput').on('input', function () {
+        var searchTerm = $(this).val().trim().toLowerCase();
+        var filteredTweets = originalTweets.filter(function (tweet) {
+          return tweet.username.toLowerCase().includes(searchTerm) || tweet.content.toLowerCase().includes(searchTerm);
+        });
+        renderTweets(filteredTweets);
+      });
+
+      function renderTweets(tweets) {
+        tweetContainer.innerHTML = ''
+        tweets.forEach(function (tweet) {
+          var tweetDiv = document.createElement('div');
+          tweetDiv.className = 'card mt-3';
+
+          var tweetImg = document.createElement('img');
+          tweetImg.className = 'card-img-top tweet-image';
+          tweetImg.src = tweet.image_url;
+
+
+          var tweetusername = document.createElement('div');
+          tweetusername.className = 'card-title';
+          tweetusername.textContent = tweet.username;
+          tweetusername.style.fontWeight = 'bold';
+
+          var tweetdate = document.createElement('div');
+          tweetdate.className = 'card-title';
+          tweetdate.textContent = tweet.date;
+
+          var tweetCardBody = document.createElement('div');
+          tweetCardBody.className = 'card-body';
+          var tweetContent = document.createElement('p');
+          tweetContent.className = 'card-text';
+          tweetContent.textContent = tweet.content;
+
+
+          if (tweet.username === "{{ username }}") {
+            var editButton = document.createElement('button');
+            editButton.className = 'btn btn-info mr-1';
+            editButton.textContent = 'Edit';
+            editButton.onclick = function () { editTweet(tweet); };
+            var deleteButton = document.createElement('button');
+            deleteButton.className = 'btn btn-danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = function () { deleteTweet(tweet.id); };
+            tweetCardBody.appendChild(editButton);
+            tweetCardBody.appendChild(deleteButton);
+          }
+
+          tweetCardBody.appendChild(tweetContent);
+          tweetDiv.appendChild(tweetusername);
+          tweetDiv.appendChild(tweetdate);
+          tweet.image_url && tweetDiv.appendChild(tweetImg);
+          tweetDiv.appendChild(tweetCardBody);
+          tweetContainer.appendChild(tweetDiv);
+        });
+      }
+        });
+
+
+      function editTweet(tweet) {
+        $('#tweetModal').modal('show');
+        $('#tweetModalLabel').text('Edit Tweet')
+        $('#tweetForm').attr('action', `/edit-tweet/${tweet.id}`)
+        $('#tweetId').val(tweet.id)
+
+
+        document.getElementById('tweetContent').value = tweet.content || "";
+
+
+
+      }
+
+      function deleteTweet(tweetId) {
+        fetch(`/delete_tweet?id=${tweetId}`, {
+          method: 'get'
+        })
+          .then(response => {
+            if (response.ok) {
+              alert('Tweet deleted successfully');
+              window.location.reload();
+            } else {
+              throw new Error('Failed to delete tweet');
+            }
+          })
+          .catch(error => {
+            console.error('Error deleting tweet:', error);
+            alert('Failed to delete tweet. Please try again.');
+          });
+      }
+      $('#addTweetButton').click(function () {
+        $('#tweetModal').modal('show');
+      });
+
+      $('#usersButton').click(function () {
+        window.location.href = '/users';
+      });
+
+      function checkLength() {
+        var maxLength = 140;
+        var currentLength = document.getElementById("tweetContent").value.length;
+        var charCount = document.getElementById("charCount");
+        charCount.innerHTML = maxLength - currentLength + " characters left";
+      }
+    </script>
+  </body>
+</html>
