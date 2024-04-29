@@ -108,3 +108,33 @@ async def set_username(request: Request):
         return RedirectResponse(url="/home?error=User Already Exists", status_code=303)
     user_ref.update({'username': username})
     return RedirectResponse(url="/home", status_code=303)
+
+def get_users_list(username):
+    response = firestore_db.collection('User').get()
+    users_list = []
+    for user in response:
+        data = user.to_dict()
+        data["id"] = user.id
+        if "username" in data and data["username"] == username:
+            continue
+        users_list.append(data)
+    return users_list
+
+
+@app.get("/users", response_class=HTMLResponse)
+async def users(request: Request, token: str = Cookie(None)):
+    error=None
+    user_token = validate_firebase_token(token)
+    if not user_token:
+        return RedirectResponse(url="/", status_code=303)
+    if request.query_params.get("error"):
+        error = request.query_params.get("error")
+    user_ref = get_user(user_token)
+    user_data = user_ref.get().to_dict()
+    username = user_data.get('username') if user_data else None
+    userId = user_data.get('user_id') if user_data else None
+    followers = user_data.get('followers') if user_data else []
+    followers = None if [] else followers
+    users = get_users_list(username)
+    return templates.TemplateResponse('users.html', {'request': request, "token": token,  "error":error,"users":users,"userId":userId,"followers":followers})
+

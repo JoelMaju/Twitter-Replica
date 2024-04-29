@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Page</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    .user-card {
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background-color: #fff;
+    }
+
+    .user-details {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .user-details h2 {
+      margin-bottom: 0;
+      margin-right: 10px;
+    }
+
+    .btn-follow {
+      background-color: #007bff;
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 20px;
+      font-size: 14px;
+    }
+
+    .btn-unfollow {
+      background-color: #dc3545;
+    }
+
+    .btn-follow,
+    .btn-unfollow {
+      margin-left: auto;
+    }
+
+    .username {
+      cursor: pointer;
+      color: #007bff;
+      text-decoration: underline;
+      transition: color 0.3s;
+    }
+
+    .username:hover {
+      color: #0056b3;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <a href="/home"><button  class="btn btn-success">Home</button></a>
+    <h1>All Users</h1>
+    <input type="text" id="searchInput" placeholder="Search by username" >
+    {% for user in users %}
+    <div class="user-card mt-2" data-username="{{ user.username }}">
+      <div class="user-details">
+        <h5 class="username" data-user-id="{{ user.id }}">
+          {{ user.username }}
+        </h5>
+        <div class="ml-4">
+          {{ user.email }}
+        </div>
+        {% if followers is not none %} {% if user.username in followers %}
+        <button class="btn btn-unfollow" data-user-id="{{ user.username }}">
+          Unfollow
+        </button>
+        {% else %}
+        <button class="btn btn-follow" data-user-id="{{ user.username }}">
+          Follow
+        </button>
+        {% endif %} {% else %}
+        <button class="btn btn-follow" data-user-id="{{ user.username }}">
+          Follow
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const searchInput = document.getElementById('searchInput');
+      const userCards = document.querySelectorAll('.user-card');
+
+      searchInput.addEventListener('input', function () {
+        const searchTerm = this.value.toLowerCase();
+        userCards.forEach(function (card) {
+          const username = card.getAttribute('data-username').toLowerCase();
+          if (username.includes(searchTerm)) {
+            card.style.display = 'block';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+
+      document.querySelectorAll(".btn-follow").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var userId = this.getAttribute("data-user-id");
+
+          console.log(userId);
+          var currentUserId = "{{ userId }}";
+          fetch("/follow", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              current_user_id: currentUserId,
+            }),
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Failed to follow user");
+              }
+              window.location.reload();
+            })
+            .catch((error) => {
+              alert("Error following user:", error);
+              console.error("Error following user:", error);
+            });
+        });
+      });
+
+
+      document.querySelectorAll(".btn-unfollow").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var userId = this.getAttribute("data-user-id");
+          var currentUserId = "{{ userId }}";
+          console.log(userId);
+          fetch("/unfollow", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              current_user_id: currentUserId,
+            }),
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Failed to unfollow user");
+              }
+              window.location.reload();
+            })
+            .catch((error) => {
+              console.error("Error unfollowing user:", error);
+            });
+        });
+      });
+
+
+      document.querySelectorAll(".username").forEach(function (username) {
+        username.addEventListener("click", function () {
+          var userId = this.getAttribute("data-user-id");
+
+          window.location.href = "/user/" + userId;
+        });
+      });
+    });
+  </script>
+</body>
+
+</html>
