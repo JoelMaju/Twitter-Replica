@@ -121,6 +121,7 @@ def get_users_list(username):
     return users_list
 
 
+
 @app.get("/users", response_class=HTMLResponse)
 async def users(request: Request, token: str = Cookie(None)):
     error=None
@@ -138,3 +139,103 @@ async def users(request: Request, token: str = Cookie(None)):
     users = get_users_list(username)
     return templates.TemplateResponse('users.html', {'request': request, "token": token,  "error":error,"users":users,"userId":userId,"followers":followers})
 
+
+def upload_image_to_storage(image_data, image_filename):
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(image_filename)
+    blob.upload_from_string(image_data, content_type="image/jpeg") 
+    blob.make_public() 
+    return blob.public_url
+
+
+@app.post("/add-tweet")
+async def add_tweet(request: Request, tweetContent: str = Form(...), tweetImage: UploadFile = Form(...)):
+    id_token = request.cookies.get("token")
+    user_token = validate_firebase_token(id_token)
+    if not user_token:
+        raise HTTPException(status_code=403, detail="Authentication required")
+
+    user_ref = get_user(user_token)
+    user_data = user_ref.get().to_dict()
+    if not user_data or not user_data.get('username'):
+        raise HTTPException(status_code=400, detail="Username not set")
+
+    if len(tweetContent) > 140:
+        raise HTTPException(status_code=400, detail="Tweet exceeds 140 characters")
+
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        shutil.copyfileobj(tweetImage.file, tmp)
+        tmp.close()
+        with open(tmp.name, "rb") as f:
+            image_data = f.read()
+
+    image_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}.jpg"
+    image_url = upload_image_to_storage(image_data, image_filename)
+
+    tweet = {
+        'username': user_data['username'],
+        'content': tweetContent,
+        'image_url': image_url,
+        'date': datetime.now()
+    }
+    firestore_db.collection('Tweet').add(tweet)
+
+    return RedirectResponse(url="/home", status_code=303)
+
+from fastapi import HTTPException
+
+@app.post("/edit-tweet/{tweet_id}")
+async def edit_tweet(tweet_id: str, request: Request, tweetContent: str = Form(...), tweetImage: UploadFile = Form(...)):
+    id_token = request.cookies.get("token")
+    user_token = validate_firebase_token(id_token)
+    if not user_token:
+        raise HTTPException(status_code=403, detail="Authentication required")
+    user_ref = get_user(user_token)
+    user_data = user_ref.get().to_dict()
+    if not user_data or not user_data.get('username'):
+        raise HTTPException(status_code=400, detail="Username not set")
+
+    if len(tweetContent) > 140:
+        raise HTTPException(status_code=400, detail="Tweet exceeds 140 characters")
+
+    tweet_ref = firestore_db.collection('Tweet').document(tweet_id)
+    tweet_data = tweet_ref.get().to_dict()
+    if not tweet_data:
+        raise HTTPException(status_code=404, detail="Tweet not found")
+
+    if tweet_data['username'] != user_data['username']:
+        raise HTTPException(status_code=403, detail="You are not allowed to edit this tweet")
+
+    image_data = None
+    if tweetImage:
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            shutil.copyfileobj(tweetImage.file, tmp)
+            tmp.close()
+            with open(tmp.name, "rb") as f:
+                image_data = f.read()
+
+    updated_tweet = {
+        'content': tweetContent,
+        'date': datetime.now()
+    }
+
+    if image_data:
+
+        image_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}.jpg"
+        image_url = upload_image_to_storage(image_data, image_filename)
+        updated_tweet['image_url'] = image_url
+
+    tweet_ref.update(updated_tweet)
+
+    return RedirectResponse(url="/home", status_code=303)
+
+
+
+@app.get("/delete_tweet")
+async def deltetTweet(request: Request,):
+    try:
+        id=request.query_params.get("id")
+        firestore_db.collection('Tweet').document(id).delete()
+        return {"message": "Tweet deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete tweet: {str(e)}")
