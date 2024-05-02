@@ -239,3 +239,57 @@ async def deltetTweet(request: Request,):
         return {"message": "Tweet deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete tweet: {str(e)}")
+
+async def add_follower(user_id: str, follower_id: str):
+    user_ref = firestore_db.collection('User').document(follower_id)
+    user_data = user_ref.get().to_dict()
+    if user_data:
+        if "followers" not in user_data:
+            user_data["followers"] = []
+        if user_id not in user_data["followers"]:
+            user_data["followers"].append(user_id)
+            user_ref.update({"followers": user_data["followers"]})
+        return {"message": "Successfully followed user"}
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
+
+async def remove_follower(follower_id: str, user_id: str):
+    user_ref = firestore_db.collection('User').document(user_id)
+    user_data = user_ref.get().to_dict()
+    if user_data:
+        if "followers" in user_data:
+            if follower_id in user_data["followers"]:
+                user_data["followers"].remove(follower_id)
+                user_ref.update({"followers": user_data["followers"]})
+                return {"message": "Successfully unfollowed user"}
+            else:
+                raise HTTPException(status_code=404, detail="User not followed")
+        else:
+            raise HTTPException(status_code=404, detail="User has no followers")
+    else:
+        raise HTTPException(status_code=404, detail="User not found")
+
+@app.post("/follow")
+async def follow_user(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id")
+    current_user_id=data.get("current_user_id")
+    if not user_id:
+        raise HTTPException(status_code=422, detail="Missing user_id in request body")
+    if not current_user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    await add_follower(user_id, current_user_id)
+    return {"message": "Successfully followed user"}
+
+
+@app.post("/unfollow")
+async def unfollow_user(request: Request):
+    data = await request.json()
+    user_id = data.get("user_id")
+    current_user_id=data.get("current_user_id")
+    if not user_id:
+        raise HTTPException(status_code=422, detail="Missing user_id in request body")
+    if not current_user_id:
+        raise HTTPException(status_code=401, detail="Unauthorized") 
+    await remove_follower(user_id, current_user_id)
+    return {"message": "Successfully UnFollowed user"}
