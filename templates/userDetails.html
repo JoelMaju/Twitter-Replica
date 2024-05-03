@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Details</title>
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+
+      .container {
+        padding: 20px;
+      }
+
+      h1,
+      h2 {
+        margin-bottom: 20px;
+      }
+
+      .btn-follow {
+        background-color: #007bff;
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 14px;
+      }
+
+      .btn-unfollow {
+        background-color: #dc3545;
+      }
+
+      .btn-follow,
+      .btn-unfollow {
+        margin-left: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <a href="/home"><button class="btn btn-success">Home</button></a>
+      <h1>User Details</h1>
+      <div class="row">
+        <div class="col-md-6">
+          <h2>Username:</h2>
+          <p>{{ userData.username }}</p>
+        </div>
+        <div class="col-md-6">
+          <h2>Email:</h2>
+          <p>{{ userData.email }}</p>
+        </div>
+      </div>
+      {% if followers is not none %} {% if userData.username in followers %}
+      <button class="btn btn-unfollow" data-user-id="{{ userData.username }}">
+        Unfollow
+      </button>
+      {% else %}
+      <button class="btn btn-follow" data-user-id="{{ userData.username }}">
+        Follow
+      </button>
+      {% endif %} {% else %}
+      <button class="btn btn-follow" data-user-id="{{ userData.username }}">
+        Follow
+      </button>
+      {% endif %}
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <input
+            type="text"
+            class="form-control"
+            id="searchInput"
+            placeholder="Search by username or content"
+          />
+        </div>
+      </div>
+
+      <div class="mt-4">
+        <h2>Tweets</h2>
+        <div id="tweetContainer"></div>
+      </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+
+        //
+        var tweets = {{ tweetList | safe
+      }};
+
+      var tweetContainer = document.getElementById('tweetContainer');
+      var originalTweets = tweets.slice();
+      renderTweets(tweets);
+
+
+      $('#searchInput').on('input', function () {
+        var searchTerm = $(this).val().trim().toLowerCase();
+        var filteredTweets = originalTweets.filter(function (tweet) {
+          return tweet.username.toLowerCase().includes(searchTerm) || tweet.content.toLowerCase().includes(searchTerm);
+        });
+        renderTweets(filteredTweets);
+      });
+
+      function renderTweets(tweets) {
+        tweetContainer.innerHTML = '';
+        tweets.forEach(function (tweet) {
+          var tweetDiv = document.createElement('div');
+          tweetDiv.className = 'card mt-3';
+          tweetDiv.style = "max-width: 400px;"
+
+          var tweetImg = document.createElement('img');
+          tweetImg.className = 'card-img-top tweet-image';
+          tweetImg.src = tweet.image_url;
+          tweetImg.style = "max-width: 400px;"
+
+
+          var tweetusername = document.createElement('div');
+          tweetusername.className = 'card-title';
+          tweetusername.textContent = tweet.username;
+          tweetusername.style.fontWeight = 'bold';
+
+          var tweetCardBody = document.createElement('div');
+          tweetCardBody.className = 'card-body';
+          var tweetContent = document.createElement('p');
+          tweetContent.className = 'card-text';
+          tweetContent.textContent = tweet.content;
+
+          tweetCardBody.appendChild(tweetContent);
+          tweetDiv.appendChild(tweetusername);
+          tweet.image_url && tweetDiv.appendChild(tweetImg);
+          tweetDiv.appendChild(tweetCardBody);
+          tweetContainer.appendChild(tweetDiv);
+        });
+      }
+
+      document.querySelectorAll(".btn-follow").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var userId = this.getAttribute("data-user-id");
+          var currentUserId = "{{ userId }}";
+          fetch("/follow", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              current_user_id: currentUserId,
+            }),
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Failed to follow user");
+              }
+              window.location.reload();
+            })
+            .catch((error) => {
+              alert("Error following user:", error);
+              console.error("Error following user:", error);
+            });
+        });
+      });
+
+
+      document.querySelectorAll(".btn-unfollow").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var userId = this.getAttribute("data-user-id");
+          var currentUserId = "{{ userId }}";
+          console.log(userId, currentUserId)
+          console.log("userid", userId)
+          console.log("currentUserId", currentUserId)
+          fetch("/unfollow", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              user_id: userId,
+              current_user_id: currentUserId,
+            }),
+          })
+            .then((response) => {
+              if (!response.ok) {
+                throw new Error("Failed to unfollow user");
+              }
+              window.location.reload();
+            })
+            .catch((error) => {
+              alert("Error unfollowing user:", error)
+              console.error("Error unfollowing user:", error);
+            });
+        });
+      });
+
+
+          });
+    </script>
+  </body>
+</html>

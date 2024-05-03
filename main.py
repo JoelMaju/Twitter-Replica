@@ -293,3 +293,37 @@ async def unfollow_user(request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized") 
     await remove_follower(user_id, current_user_id)
     return {"message": "Successfully UnFollowed user"}
+def userTwitterList(userName):
+    response = firestore_db.collection('Tweet').where('username', '==', userName).get()
+    tweet_list = []
+    for tweet in response:
+        data = tweet.to_dict()
+        data["id"] = tweet.id
+        data['date'] = data['date'].isoformat()
+        tweet_list.append(data)
+    
+    last_10_tweets = tweet_list[-10:]
+    return last_10_tweets
+
+
+def get_user_by_id(user_id):
+    user_ref = firestore_db.collection('User').document(user_id)
+    user_data = user_ref.get().to_dict()
+    return user_data
+
+
+@app.get("/user/{user_id}", response_class=HTMLResponse)
+async def user_details(request: Request,user_id:str, token: str = Cookie(None),):
+    user_token = validate_firebase_token(token)
+    if not user_token:
+        return RedirectResponse(url="/", status_code=303)
+    if request.query_params.get("error"):
+        error = request.query_params.get("error")
+    userData = get_user_by_id(user_id)
+    username = userData.get('username') if userData else None
+    tweetsData = userTwitterList(username)
+    user_ref = get_user(user_token)
+    user_data = user_ref.get().to_dict()
+    followers = user_data.get('followers') if user_data else None
+    userId = user_data.get('user_id') if user_data else None
+    return templates.TemplateResponse('userDetails.html', {'request': request, "token": token,"userData":userData,"tweetList":tweetsData,"followers":followers,"userId":userId})
