@@ -10,14 +10,13 @@ import google.oauth2.id_token
 import tempfile
 import shutil
 
-
 app = FastAPI()
 
 firestore_db = firestore.Client()
 
 firebase_request_adapter = requests.Request()
 storage_client = storage.Client()
-bucket_name = "twitter-f6929.firebaseapp.com"
+bucket_name = "evproject-416816.appspot.com"
 
 app.mount('/static', StaticFiles(directory='static'), name='static')
 templates = Jinja2Templates(directory="templates")
@@ -60,6 +59,7 @@ async def root(request: Request):
     user = get_user(user_token)
     return templates.TemplateResponse('main.html', {'request': request})
 
+
 def get_twitter_list(followers, username):
     response = firestore_db.collection('Tweet').get()
     tweet_list = []
@@ -92,6 +92,7 @@ async def home(request: Request, token: str = Cookie(None)):
     tweet_list_json = json.dumps(tweet_list)
     return templates.TemplateResponse('home.html', {'request': request, "token": token, "username": username, "tweetList": tweet_list_json,"error":error,"userId":userId})
 
+
 @app.post("/set-username")
 async def set_username(request: Request):
     form_data = await request.form()
@@ -108,36 +109,6 @@ async def set_username(request: Request):
         return RedirectResponse(url="/home?error=User Already Exists", status_code=303)
     user_ref.update({'username': username})
     return RedirectResponse(url="/home", status_code=303)
-
-def get_users_list(username):
-    response = firestore_db.collection('User').get()
-    users_list = []
-    for user in response:
-        data = user.to_dict()
-        data["id"] = user.id
-        if "username" in data and data["username"] == username:
-            continue
-        users_list.append(data)
-    return users_list
-
-
-
-@app.get("/users", response_class=HTMLResponse)
-async def users(request: Request, token: str = Cookie(None)):
-    error=None
-    user_token = validate_firebase_token(token)
-    if not user_token:
-        return RedirectResponse(url="/", status_code=303)
-    if request.query_params.get("error"):
-        error = request.query_params.get("error")
-    user_ref = get_user(user_token)
-    user_data = user_ref.get().to_dict()
-    username = user_data.get('username') if user_data else None
-    userId = user_data.get('user_id') if user_data else None
-    followers = user_data.get('followers') if user_data else []
-    followers = None if [] else followers
-    users = get_users_list(username)
-    return templates.TemplateResponse('users.html', {'request': request, "token": token,  "error":error,"users":users,"userId":userId,"followers":followers})
 
 
 def upload_image_to_storage(image_data, image_filename):
@@ -240,6 +211,36 @@ async def deltetTweet(request: Request,):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete tweet: {str(e)}")
 
+def get_users_list(username):
+    response = firestore_db.collection('User').get()
+    users_list = []
+    for user in response:
+        data = user.to_dict()
+        data["id"] = user.id
+        if "username" in data and data["username"] == username:
+            continue
+        users_list.append(data)
+    return users_list
+
+    
+@app.get("/users", response_class=HTMLResponse)
+async def users(request: Request, token: str = Cookie(None)):
+    error=None
+    user_token = validate_firebase_token(token)
+    if not user_token:
+        return RedirectResponse(url="/", status_code=303)
+    if request.query_params.get("error"):
+        error = request.query_params.get("error")
+    user_ref = get_user(user_token)
+    user_data = user_ref.get().to_dict()
+    username = user_data.get('username') if user_data else None
+    userId = user_data.get('user_id') if user_data else None
+    followers = user_data.get('followers') if user_data else []
+    followers = None if [] else followers
+    users = get_users_list(username)
+    return templates.TemplateResponse('users.html', {'request': request, "token": token,  "error":error,"users":users,"userId":userId,"followers":followers})
+
+
 async def add_follower(user_id: str, follower_id: str):
     user_ref = firestore_db.collection('User').document(follower_id)
     user_data = user_ref.get().to_dict()
@@ -293,6 +294,7 @@ async def unfollow_user(request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized") 
     await remove_follower(user_id, current_user_id)
     return {"message": "Successfully UnFollowed user"}
+
 def userTwitterList(userName):
     response = firestore_db.collection('Tweet').where('username', '==', userName).get()
     tweet_list = []
