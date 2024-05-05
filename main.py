@@ -16,7 +16,7 @@ firestore_db = firestore.Client()
 
 firebase_request_adapter = requests.Request()
 storage_client = storage.Client()
-bucket_name = "evproject-416816.appspot.com"
+bucket_name = "twitter-16929.firebaseapp.com"
 
 app.mount('/static', StaticFiles(directory='static'), name='static')
 templates = Jinja2Templates(directory="templates")
