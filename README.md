@@ -49,8 +49,8 @@ This project simulates core social media functionalities such as posting tweets,
 ## ⚙️ Installation & Setup
 
 ### 1. Clone repository
-git clone https://github.com/your-username/twitter-clone.git
-cd twitter-clone
+git clone https://github.com/JoelMaju/Twitter-Replica.git
+cd Twitter-Replica
 
 ## Create Virtual Enviornment
 python -m venv venv
