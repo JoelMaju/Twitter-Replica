@@ -52,7 +52,7 @@ This project simulates core social media functionalities such as posting tweets,
 git clone https://github.com/JoelMaju/Twitter-Replica.git
 cd Twitter-Replica
 
-## Create Virtual Enviornment
+## Create Virtual Environment
 python -m venv venv
 source venv/bin/activate   # Mac/Linux
 venv\Scripts\activate      # Windows
