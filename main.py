@@ -1,3 +1,5 @@
+import os
+import uuid
 import json
 from datetime import datetime
 from fastapi import FastAPI, Request, Form, HTTPException, UploadFile, Cookie
@@ -9,18 +11,26 @@ from google.auth.transport import requests
 import google.oauth2.id_token
 import tempfile
 import shutil
+import local_constants
 
 app = FastAPI()
 
-firestore_db = firestore.Client()
+firestore_db = firestore.Client(
+    project=local_constants.PROJECT_NAME
+)
 
 firebase_request_adapter = requests.Request()
-storage_client = storage.Client()
-bucket_name = "twitter-16929.firebaseapp.com"
 
-app.mount('/static', StaticFiles(directory='static'), name='static')
+storage_client = storage.Client(
+    project=local_constants.PROJECT_NAME
+)
+
+bucket = storage_client.bucket(
+    local_constants.PROJECT_STORAGE_BUCKET
+)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
 
 def get_user(user_token):
     user_ref = firestore_db.collection('User').document(user_token['user_id'])
@@ -111,48 +121,96 @@ async def set_username(request: Request):
     return RedirectResponse(url="/home", status_code=303)
 
 
-def upload_image_to_storage(image_data, image_filename):
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(image_filename)
-    blob.upload_from_string(image_data, content_type="image/jpeg") 
-    blob.make_public() 
-    return blob.public_url
+UPLOAD_DIRECTORY = "static/uploads"
+
+
+async def save_image_locally(image: UploadFile) -> str | None:
+    if not image or not image.filename:
+        return None
+
+    allowed_types = {
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+    }
+
+    extension = allowed_types.get(image.content_type)
+
+    if not extension:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPG, PNG, and WebP images are allowed",
+        )
+
+    image_data = await image.read()
+
+    if len(image_data) > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail="Image must be smaller than 5 MB",
+        )
+
+    os.makedirs(UPLOAD_DIRECTORY, exist_ok=True)
+
+    filename = f"{uuid.uuid4().hex}{extension}"
+    file_path = os.path.join(UPLOAD_DIRECTORY, filename)
+
+    with open(file_path, "wb") as output_file:
+        output_file.write(image_data)
+
+    return f"/static/uploads/{filename}"
 
 
 @app.post("/add-tweet")
-async def add_tweet(request: Request, tweetContent: str = Form(...), tweetImage: UploadFile = Form(...)):
+async def add_tweet(
+    request: Request,
+    tweetContent: str = Form(...),
+    tweetImage: UploadFile | None = None,
+):
     id_token = request.cookies.get("token")
     user_token = validate_firebase_token(id_token)
+
     if not user_token:
-        raise HTTPException(status_code=403, detail="Authentication required")
+        raise HTTPException(
+            status_code=403,
+            detail="Authentication required",
+        )
 
     user_ref = get_user(user_token)
     user_data = user_ref.get().to_dict()
-    if not user_data or not user_data.get('username'):
-        raise HTTPException(status_code=400, detail="Username not set")
 
-    if len(tweetContent) > 140:
-        raise HTTPException(status_code=400, detail="Tweet exceeds 140 characters")
+    if not user_data or not user_data.get("username"):
+        raise HTTPException(
+            status_code=400,
+            detail="Username not set",
+        )
 
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        shutil.copyfileobj(tweetImage.file, tmp)
-        tmp.close()
-        with open(tmp.name, "rb") as f:
-            image_data = f.read()
+    tweet_content = tweetContent.strip()
 
-    image_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S%f')}.jpg"
-    image_url = upload_image_to_storage(image_data, image_filename)
+    if not tweet_content:
+        raise HTTPException(
+            status_code=400,
+            detail="Tweet content cannot be empty",
+        )
+
+    if len(tweet_content) > 140:
+        raise HTTPException(
+            status_code=400,
+            detail="Tweet exceeds 140 characters",
+        )
+
+    image_url = await save_image_locally(tweetImage)
 
     tweet = {
-        'username': user_data['username'],
-        'content': tweetContent,
-        'image_url': image_url,
-        'date': datetime.now()
+        "username": user_data["username"],
+        "content": tweet_content,
+        "image_url": image_url,
+        "date": datetime.now(),
     }
-    firestore_db.collection('Tweet').add(tweet)
+
+    firestore_db.collection("Tweet").add(tweet)
 
     return RedirectResponse(url="/home", status_code=303)
-
 from fastapi import HTTPException
 
 @app.post("/edit-tweet/{tweet_id}")
@@ -296,16 +354,29 @@ async def unfollow_user(request: Request):
     return {"message": "Successfully UnFollowed user"}
 
 def userTwitterList(userName):
-    response = firestore_db.collection('Tweet').where('username', '==', userName).get()
+    response = (
+        firestore_db.collection("Tweet")
+        .where("username", "==", userName)
+        .get()
+    )
+
     tweet_list = []
+
     for tweet in response:
         data = tweet.to_dict()
         data["id"] = tweet.id
-        data['date'] = data['date'].isoformat()
+
+        if data.get("date"):
+            data["date"] = data["date"].isoformat()
+
         tweet_list.append(data)
-    
-    last_10_tweets = tweet_list[-10:]
-    return last_10_tweets
+
+    tweet_list.sort(
+        key=lambda tweet: tweet.get("date", ""),
+        reverse=True,
+    )
+
+    return tweet_list[:10]
 
 
 def get_user_by_id(user_id):
@@ -324,8 +395,9 @@ async def user_details(request: Request,user_id:str, token: str = Cookie(None),)
     userData = get_user_by_id(user_id)
     username = userData.get('username') if userData else None
     tweetsData = userTwitterList(username)
+    tweets_json = json.dumps(tweetsData)
     user_ref = get_user(user_token)
     user_data = user_ref.get().to_dict()
     followers = user_data.get('followers') if user_data else None
     userId = user_data.get('user_id') if user_data else None
-    return templates.TemplateResponse('userDetails.html', {'request': request, "token": token,"userData":userData,"tweetList":tweetsData,"followers":followers,"userId":userId})
+    return templates.TemplateResponse('userDetails.html', {'request': request, "token": token,"userData":userData,"tweetList":tweets_json,"followers":followers,"userId":userId})
