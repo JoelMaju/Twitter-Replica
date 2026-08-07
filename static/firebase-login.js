@@ -1,5 +1,7 @@
 "use strict";
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.6/firebase-app.js";
+
 import {
   getAuth,
   createUserWithEmailAndPassword,
@@ -7,107 +9,203 @@ import {
   signOut,
 } from "https://www.gstatic.com/firebasejs/9.6.6/firebase-auth.js";
 
+
 const firebaseConfig = {
   apiKey: "AIzaSyDVT1EjEtFLZ66xzMM9Bk9J72ahrDMR3EY",
   authDomain: "clean-terminal-414810.firebaseapp.com",
   projectId: "clean-terminal-414810",
   storageBucket: "clean-terminal-414810.appspot.com",
   messagingSenderId: "768883084765",
-  appId: "1:768883084765:web:f5c5938ce8e7a6a7703a34"
+  appId: "1:768883084765:web:f5c5938ce8e7a6a7703a34",
 };
 
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+
 window.addEventListener("load", function () {
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
   updateUI(document.cookie);
 
-  
-  document.getElementById("login").addEventListener("click", function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+  const loginButton = document.getElementById("login");
+  const signUpButton = document.getElementById("sign-up");
+  const signOutButton = document.getElementById("sign-out");
 
-    signInWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        const user = userCredential.user;
-        console.log("logged in");
 
-        user.getIdToken().then((token) => {
-          document.cookie = "token=" + token + ";path=/;SameSite=Strict";
-       
-        window.location.href = "/home"
-        });
-      })
+  if (loginButton) {
+    loginButton.addEventListener("click", loginUser);
+  }
 
-      .catch((error) => {
-       
-        console.log(error.code + error.message);
 
-        alert(error.message);
-      });
-  });
+  if (signUpButton) {
+    signUpButton.addEventListener("click", registerUser);
+  }
 
-  
-  
-  document.getElementById("sign-up").addEventListener("click", function () {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
 
-    createUserWithEmailAndPassword(auth, email, password)
-      .then((userCredential) => {
-        
-        const user = userCredential.user;
-        console.log("logged in");
-
-        
-        user.getIdToken().then((token) => {
-          document.cookie = "token=" + token + ";path=/;SameSite=Strict";
-            alert("User Registered Successfully")
-            window.location.reload();
-        });
-      })
-
-      .catch((error) => {
-       
-        console.log(error.code + error.message);
-        alert(error.message);
-      });
-  });
-
-  
-  document.getElementById("sign-out").addEventListener("click", function () {
-    signOut(auth).then((output) => {
-     
-      document.cookie = "token=;path=/;SameSite=Strict";
-      window.location = "/";
-    });
-  });
+  if (signOutButton) {
+    signOutButton.addEventListener("click", logoutUser);
+  }
 });
 
 
+async function loginUser() {
+  const email = document
+    .getElementById("email")
+    .value
+    .trim();
 
-function updateUI(cookie) {
-  var token = parseCookieToken(cookie);
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  if (token.length > 0) {
-    document.getElementById("sign-out").hidden = false;
-    
-  } else {
-    document.getElementById("sign-out").hidden = true;
+  const password = document
+    .getElementById("password")
+    .value;
+
+
+  if (!email || !password) {
+    alert("Please enter your email and password.");
+    return;
+  }
+
+
+  try {
+    const userCredential =
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+    const token =
+      await userCredential.user.getIdToken();
+
+    setAuthCookie(token);
+
+    window.location.href = "/home";
+
+  } catch (error) {
+    alert(getFriendlyAuthError(error.code));
   }
 }
 
 
-function parseCookieToken(cookie) {
-  
-  var strings = cookie.split(":");
+async function registerUser() {
+  const email = document
+    .getElementById("email")
+    .value
+    .trim();
 
-  
-  for (let i = 0; i < strings.length; i++) {
-   
-    var temp = strings[i].split("=");
-    if (temp[0] == "token") return temp[1];
+  const password = document
+    .getElementById("password")
+    .value;
+
+
+  if (!email || !password) {
+    alert("Please enter your email and password.");
+    return;
+  }
+
+
+  try {
+    const userCredential =
+      await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+    const token =
+      await userCredential.user.getIdToken();
+
+    setAuthCookie(token);
+
+    alert("Account created successfully.");
+
+    window.location.href = "/home";
+
+  } catch (error) {
+    alert(getFriendlyAuthError(error.code));
+  }
+}
+
+
+async function logoutUser() {
+  try {
+    await signOut(auth);
+
+    clearAuthCookie();
+
+    window.location.href = "/";
+
+  } catch (error) {
+    alert("Unable to sign out. Please try again.");
+  }
+}
+
+
+function setAuthCookie(token) {
+  document.cookie =
+    `token=${token}; path=/; SameSite=Strict`;
+}
+
+
+function clearAuthCookie() {
+  document.cookie =
+    "token=; path=/; Max-Age=0; SameSite=Strict";
+}
+
+
+function updateUI(cookie) {
+  const token = parseCookieToken(cookie);
+
+  const signOutButton =
+    document.getElementById("sign-out");
+
+  if (!signOutButton) {
+    return;
+  }
+
+  signOutButton.hidden = !token;
+}
+
+
+function parseCookieToken(cookie) {
+  const cookies = cookie.split(";");
+
+  for (const item of cookies) {
+    const [name, ...valueParts] =
+      item.trim().split("=");
+
+    if (name === "token") {
+      return valueParts.join("=");
+    }
   }
 
   return "";
+}
+
+
+function getFriendlyAuthError(errorCode) {
+  switch (errorCode) {
+    case "auth/invalid-email":
+      return "Please enter a valid email address.";
+
+    case "auth/missing-password":
+      return "Please enter your password.";
+
+    case "auth/weak-password":
+      return "Password should be at least 6 characters.";
+
+    case "auth/email-already-in-use":
+      return "An account already exists with this email.";
+
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-login-credentials":
+    case "auth/invalid-credential":
+      return "Invalid email or password.";
+
+    case "auth/too-many-requests":
+      return "Too many attempts. Please try again later.";
+
+    default:
+      return "Authentication failed. Please try again.";
+  }
 }
