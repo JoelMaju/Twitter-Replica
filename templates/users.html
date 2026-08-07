@@ -1,189 +1,426 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>User Page</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
-  <style>
-    body {
-      background-color: #f8f9fa;
-    }
+    <title>Users - Twitter Replica</title>
 
-    .container {
-      padding: 20px;
-    }
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
 
-    h1 {
-      margin-bottom: 20px;
-    }
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
 
-    .user-card {
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      padding: 15px;
-      margin-bottom: 15px;
-      background-color: #fff;
-    }
+      .page-container {
+        padding-top: 24px;
+        padding-bottom: 40px;
+      }
 
-    .user-details {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+      .page-header {
+        margin-bottom: 24px;
+      }
 
-    .user-details h2 {
-      margin-bottom: 0;
-      margin-right: 10px;
-    }
+      .search-box {
+        margin-bottom: 24px;
+      }
 
-    .btn-follow {
-      background-color: #007bff;
-      color: #fff;
-      padding: 5px 10px;
-      border-radius: 20px;
-      font-size: 14px;
-    }
+      .user-card {
+        border: 1px solid #e1e4e8;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+        background-color: #fff;
+      }
 
-    .btn-unfollow {
-      background-color: #dc3545;
-    }
+      .user-details {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
 
-    .btn-follow,
-    .btn-unfollow {
-      margin-left: auto;
-    }
+      .user-info {
+        flex: 1;
+        min-width: 0;
+      }
 
-    .username {
-      cursor: pointer;
-      color: #007bff;
-      text-decoration: underline;
-      transition: color 0.3s;
-    }
+      .username {
+        display: inline-block;
+        margin-bottom: 4px;
+        cursor: pointer;
+        color: #007bff;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
 
-    .username:hover {
-      color: #0056b3;
-    }
-  </style>
-</head>
+      .username:hover {
+        color: #0056b3;
+        text-decoration: underline;
+      }
 
-<body>
-  <div class="container">
-    <a href="/home"><button  class="btn btn-success">Home</button></a>
-    <h1>All Users</h1>
-    <input type="text" id="searchInput" placeholder="Search by username" >
-    {% for user in users %}
-    <div class="user-card mt-2" data-username="{{ user.username }}">
-      <div class="user-details">
-        <h5 class="username" data-user-id="{{ user.id }}">
-          {{ user.username }}
-        </h5>
-        <div class="ml-4">
-          {{ user.email }}
+      .user-email {
+        margin: 0;
+        color: #6c757d;
+        font-size: 0.9rem;
+        word-break: break-word;
+      }
+
+      .btn-follow,
+      .btn-unfollow {
+        margin-left: auto;
+        padding: 6px 14px;
+        border: none;
+        border-radius: 20px;
+        font-size: 14px;
+        color: #fff;
+      }
+
+      .btn-follow {
+        background-color: #007bff;
+      }
+
+      .btn-follow:hover {
+        background-color: #0069d9;
+      }
+
+      .btn-unfollow {
+        background-color: #dc3545;
+      }
+
+      .btn-unfollow:hover {
+        background-color: #c82333;
+      }
+
+      .empty-message {
+        margin-top: 20px;
+      }
+
+      @media (max-width: 576px) {
+        .user-details {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .btn-follow,
+        .btn-unfollow {
+          margin-left: 0;
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container page-container">
+
+      <div
+        class="d-flex justify-content-between align-items-center page-header"
+      >
+        <div>
+          <h1 class="mb-1">Users</h1>
+          <p class="text-muted mb-0">
+            Discover and follow other users.
+          </p>
         </div>
-        {% if followers is not none %} {% if user.username in followers %}
-        <button class="btn btn-unfollow" data-user-id="{{ user.username }}">
-          Unfollow
-        </button>
-        {% else %}
-        <button class="btn btn-follow" data-user-id="{{ user.username }}">
-          Follow
-        </button>
-        {% endif %} {% else %}
-        <button class="btn btn-follow" data-user-id="{{ user.username }}">
-          Follow
-        </button>
-        {% endif %}
+
+        <a href="/home" class="btn btn-outline-success">
+          Home
+        </a>
       </div>
+
+      {% if error %}
+      <div class="alert alert-danger">
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          class="form-control"
+          placeholder="Search by username"
+          aria-label="Search users"
+        />
+      </div>
+
+      <div id="usersContainer">
+
+        {% for user in users %}
+        <div
+          class="user-card"
+          data-username="{{ user.username }}"
+        >
+          <div class="user-details">
+
+            <div class="user-info">
+              <h5
+                class="username"
+                data-user-id="{{ user.id }}"
+                tabindex="0"
+                role="button"
+              >
+                @{{ user.username }}
+              </h5>
+
+              <p class="user-email">
+                {{ user.email }}
+              </p>
+            </div>
+
+            {% if followers is not none and user.username in followers %}
+            <button
+              type="button"
+              class="btn btn-unfollow"
+              data-user-id="{{ user.username }}"
+            >
+              Unfollow
+            </button>
+            {% else %}
+            <button
+              type="button"
+              class="btn btn-follow"
+              data-user-id="{{ user.username }}"
+            >
+              Follow
+            </button>
+            {% endif %}
+
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+
+      <div
+        id="emptyMessage"
+        class="alert alert-light text-center empty-message"
+        style="display: none"
+      >
+        No users found.
+      </div>
+
     </div>
-    {% endfor %}
-  </div>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const searchInput = document.getElementById('searchInput');
-      const userCards = document.querySelectorAll('.user-card');
+    <script>
+      document.addEventListener(
+        "DOMContentLoaded",
+        function () {
 
-      searchInput.addEventListener('input', function () {
-        const searchTerm = this.value.toLowerCase();
-        userCards.forEach(function (card) {
-          const username = card.getAttribute('data-username').toLowerCase();
-          if (username.includes(searchTerm)) {
-            card.style.display = 'block';
-          } else {
-            card.style.display = 'none';
+          const searchInput =
+            document.getElementById("searchInput");
+
+          const userCards =
+            Array.from(
+              document.querySelectorAll(".user-card")
+            );
+
+          const emptyMessage =
+            document.getElementById("emptyMessage");
+
+
+          function filterUsers() {
+            const searchTerm =
+              searchInput.value
+                .trim()
+                .toLowerCase();
+
+            let visibleUsers = 0;
+
+            userCards.forEach(function (card) {
+              const username =
+                (
+                  card.getAttribute("data-username") ||
+                  ""
+                ).toLowerCase();
+
+              const matches =
+                username.includes(searchTerm);
+
+              card.style.display =
+                matches ? "block" : "none";
+
+              if (matches) {
+                visibleUsers += 1;
+              }
+            });
+
+            emptyMessage.style.display =
+              visibleUsers === 0
+                ? "block"
+                : "none";
           }
-        });
-      });
 
-      document.querySelectorAll(".btn-follow").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var userId = this.getAttribute("data-user-id");
 
-          console.log(userId);
-          var currentUserId = "{{ userId }}";
-          fetch("/follow", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              current_user_id: currentUserId,
-            }),
-          })
-            .then((response) => {
+          async function followUser(button) {
+            const username =
+              button.getAttribute("data-user-id");
+
+            if (!username) {
+              return;
+            }
+
+            button.disabled = true;
+
+            try {
+              const response = await fetch(
+                "/follow",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+                  body: JSON.stringify({
+                    user_id: username,
+                  }),
+                }
+              );
+
               if (!response.ok) {
-                throw new Error("Failed to follow user");
+                throw new Error(
+                  "Unable to follow user"
+                );
               }
+
               window.location.reload();
-            })
-            .catch((error) => {
-              alert("Error following user:", error);
-              console.error("Error following user:", error);
-            });
-        });
-      });
+
+            } catch (error) {
+              button.disabled = false;
+
+              alert(
+                "Unable to follow this user. Please try again."
+              );
+            }
+          }
 
 
-      document.querySelectorAll(".btn-unfollow").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var userId = this.getAttribute("data-user-id");
-          var currentUserId = "{{ userId }}";
-          console.log(userId);
-          fetch("/unfollow", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              current_user_id: currentUserId,
-            }),
-          })
-            .then((response) => {
+          async function unfollowUser(button) {
+            const username =
+              button.getAttribute("data-user-id");
+
+            if (!username) {
+              return;
+            }
+
+            button.disabled = true;
+
+            try {
+              const response = await fetch(
+                "/unfollow",
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type":
+                      "application/json",
+                  },
+                  body: JSON.stringify({
+                    user_id: username,
+                  }),
+                }
+              );
+
               if (!response.ok) {
-                throw new Error("Failed to unfollow user");
+                throw new Error(
+                  "Unable to unfollow user"
+                );
               }
+
               window.location.reload();
-            })
-            .catch((error) => {
-              console.error("Error unfollowing user:", error);
+
+            } catch (error) {
+              button.disabled = false;
+
+              alert(
+                "Unable to unfollow this user. Please try again."
+              );
+            }
+          }
+
+
+          function openUserProfile(element) {
+            const userId =
+              element.getAttribute("data-user-id");
+
+            if (!userId) {
+              return;
+            }
+
+            window.location.href =
+              `/user/${encodeURIComponent(userId)}`;
+          }
+
+
+          searchInput.addEventListener(
+            "input",
+            filterUsers
+          );
+
+
+          document
+            .querySelectorAll(".btn-follow")
+            .forEach(function (button) {
+              button.addEventListener(
+                "click",
+                function () {
+                  followUser(button);
+                }
+              );
             });
-        });
-      });
 
 
-      document.querySelectorAll(".username").forEach(function (username) {
-        username.addEventListener("click", function () {
-          var userId = this.getAttribute("data-user-id");
+          document
+            .querySelectorAll(".btn-unfollow")
+            .forEach(function (button) {
+              button.addEventListener(
+                "click",
+                function () {
+                  unfollowUser(button);
+                }
+              );
+            });
 
-          window.location.href = "/user/" + userId;
-        });
-      });
-    });
-  </script>
-</body>
 
+          document
+            .querySelectorAll(".username")
+            .forEach(function (usernameElement) {
+
+              usernameElement.addEventListener(
+                "click",
+                function () {
+                  openUserProfile(
+                    usernameElement
+                  );
+                }
+              );
+
+
+              usernameElement.addEventListener(
+                "keydown",
+                function (event) {
+                  if (
+                    event.key === "Enter" ||
+                    event.key === " "
+                  ) {
+                    event.preventDefault();
+
+                    openUserProfile(
+                      usernameElement
+                    );
+                  }
+                }
+              );
+            });
+
+
+          filterUsers();
+        }
+      );
+    </script>
+  </body>
 </html>
