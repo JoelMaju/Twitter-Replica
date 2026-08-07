@@ -3,203 +3,446 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Details</title>
+
+    <title>User Profile - Twitter Replica</title>
+
     <link
       rel="stylesheet"
       href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
     />
+
     <style>
       body {
         background-color: #f8f9fa;
       }
 
-      .container {
-        padding: 20px;
+      .page-container {
+        padding-top: 24px;
+        padding-bottom: 40px;
       }
 
-      h1,
-      h2 {
-        margin-bottom: 20px;
+      .profile-card {
+        background-color: #fff;
+        border: 1px solid #e1e4e8;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 24px;
+      }
+
+      .profile-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .profile-info h1 {
+        margin-bottom: 8px;
+      }
+
+      .profile-email {
+        margin: 0;
+        color: #6c757d;
+      }
+
+      .btn-follow,
+      .btn-unfollow {
+        padding: 6px 14px;
+        border: none;
+        border-radius: 20px;
+        font-size: 14px;
+        color: #fff;
       }
 
       .btn-follow {
         background-color: #007bff;
-        color: #fff;
-        padding: 5px 10px;
-        border-radius: 20px;
-        font-size: 14px;
+      }
+
+      .btn-follow:hover {
+        background-color: #0069d9;
       }
 
       .btn-unfollow {
         background-color: #dc3545;
       }
 
-      .btn-follow,
-      .btn-unfollow {
-        margin-left: auto;
+      .btn-unfollow:hover {
+        background-color: #c82333;
+      }
+
+      .tweet-card {
+        max-width: 600px;
+        margin: 20px auto;
+      }
+
+      .tweet-image {
+        width: 100%;
+        height: auto;
+        object-fit: contain;
+      }
+
+      .tweet-username {
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .tweet-meta {
+        font-size: 0.9rem;
+        color: #6c757d;
+        margin-bottom: 8px;
+      }
+
+      @media (max-width: 576px) {
+        .profile-header {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .btn-follow,
+        .btn-unfollow {
+          width: 100%;
+        }
       }
     </style>
   </head>
 
   <body>
-    <div class="container">
-      <a href="/home"><button class="btn btn-success">Home</button></a>
-      <h1>User Details</h1>
-      <div class="row">
-        <div class="col-md-6">
-          <h2>Username:</h2>
-          <p>{{ userData.username }}</p>
-        </div>
-        <div class="col-md-6">
-          <h2>Email:</h2>
-          <p>{{ userData.email }}</p>
+    <div class="container page-container">
+
+      <div class="mb-3">
+        <a href="/home" class="btn btn-outline-success">
+          Home
+        </a>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-header">
+
+          <div class="profile-info">
+            <h1>@{{ userData.username }}</h1>
+
+            <p class="profile-email">
+              {{ userData.email }}
+            </p>
+          </div>
+
+          {% if followers is not none and userData.username in followers %}
+          <button
+            type="button"
+            class="btn btn-unfollow"
+            data-user-id="{{ userData.username }}"
+          >
+            Unfollow
+          </button>
+          {% else %}
+          <button
+            type="button"
+            class="btn btn-follow"
+            data-user-id="{{ userData.username }}"
+          >
+            Follow
+          </button>
+          {% endif %}
+
         </div>
       </div>
-      {% if followers is not none %} {% if userData.username in followers %}
-      <button class="btn btn-unfollow" data-user-id="{{ userData.username }}">
-        Unfollow
-      </button>
-      {% else %}
-      <button class="btn btn-follow" data-user-id="{{ userData.username }}">
-        Follow
-      </button>
-      {% endif %} {% else %}
-      <button class="btn btn-follow" data-user-id="{{ userData.username }}">
-        Follow
-      </button>
-      {% endif %}
-      <div class="row mt-4">
+
+      <div class="row mb-4">
         <div class="col-md-12">
           <input
             type="text"
             class="form-control"
             id="searchInput"
-            placeholder="Search by username or content"
+            placeholder="Search this user's tweets"
+            aria-label="Search tweets"
           />
         </div>
       </div>
 
       <div class="mt-4">
         <h2>Tweets</h2>
+
         <div id="tweetContainer"></div>
+
+        <div
+          id="emptyMessage"
+          class="alert alert-light text-center"
+          style="display: none"
+        >
+          No tweets found.
+        </div>
       </div>
+
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     <script>
-      document.addEventListener('DOMContentLoaded', function () {
+      document.addEventListener(
+        "DOMContentLoaded",
+        function () {
 
-        //
-        var tweets = {{ tweetList | safe
-      }};
+          const tweets = {{ tweetList | safe }};
 
-      var tweetContainer = document.getElementById('tweetContainer');
-      var originalTweets = tweets.slice();
-      renderTweets(tweets);
+          const tweetContainer =
+            document.getElementById("tweetContainer");
 
+          const searchInput =
+            document.getElementById("searchInput");
 
-      $('#searchInput').on('input', function () {
-        var searchTerm = $(this).val().trim().toLowerCase();
-        var filteredTweets = originalTweets.filter(function (tweet) {
-          return tweet.username.toLowerCase().includes(searchTerm) || tweet.content.toLowerCase().includes(searchTerm);
-        });
-        renderTweets(filteredTweets);
-      });
+          const emptyMessage =
+            document.getElementById("emptyMessage");
 
-      function renderTweets(tweets) {
-        tweetContainer.innerHTML = '';
-        tweets.forEach(function (tweet) {
-          var tweetDiv = document.createElement('div');
-          tweetDiv.className = 'card mt-3';
-          tweetDiv.style = "max-width: 400px;"
-
-          var tweetImg = document.createElement('img');
-          tweetImg.className = 'card-img-top tweet-image';
-          tweetImg.src = tweet.image_url;
-          tweetImg.style = "max-width: 400px;"
+          const originalTweets = [...tweets];
 
 
-          var tweetusername = document.createElement('div');
-          tweetusername.className = 'card-title';
-          tweetusername.textContent = tweet.username;
-          tweetusername.style.fontWeight = 'bold';
+          function formatDate(dateString) {
+            if (!dateString) {
+              return "";
+            }
 
-          var tweetCardBody = document.createElement('div');
-          tweetCardBody.className = 'card-body';
-          var tweetContent = document.createElement('p');
-          tweetContent.className = 'card-text';
-          tweetContent.textContent = tweet.content;
+            const date = new Date(dateString);
 
-          tweetCardBody.appendChild(tweetContent);
-          tweetDiv.appendChild(tweetusername);
-          tweet.image_url && tweetDiv.appendChild(tweetImg);
-          tweetDiv.appendChild(tweetCardBody);
-          tweetContainer.appendChild(tweetDiv);
-        });
-      }
+            if (Number.isNaN(date.getTime())) {
+              return dateString;
+            }
 
-      document.querySelectorAll(".btn-follow").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var userId = this.getAttribute("data-user-id");
-          var currentUserId = "{{ userId }}";
-          fetch("/follow", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              current_user_id: currentUserId,
-            }),
-          })
-            .then((response) => {
-              if (!response.ok) {
-                throw new Error("Failed to follow user");
+            return date.toLocaleString();
+          }
+
+
+          function renderTweets(tweetList) {
+            tweetContainer.innerHTML = "";
+
+            if (tweetList.length === 0) {
+              emptyMessage.style.display = "block";
+              return;
+            }
+
+            emptyMessage.style.display = "none";
+
+
+            tweetList.forEach(function (tweet) {
+              const card =
+                document.createElement("div");
+
+              card.className =
+                "card tweet-card";
+
+
+              const cardBody =
+                document.createElement("div");
+
+              cardBody.className =
+                "card-body";
+
+
+              const username =
+                document.createElement("div");
+
+              username.className =
+                "tweet-username";
+
+              username.textContent =
+                `@${tweet.username}`;
+
+
+              const date =
+                document.createElement("div");
+
+              date.className =
+                "tweet-meta";
+
+              date.textContent =
+                formatDate(tweet.date);
+
+
+              const content =
+                document.createElement("p");
+
+              content.className =
+                "card-text";
+
+              content.textContent =
+                tweet.content;
+
+
+              cardBody.appendChild(username);
+              cardBody.appendChild(date);
+              cardBody.appendChild(content);
+
+
+              if (tweet.image_url) {
+                const image =
+                  document.createElement("img");
+
+                image.className =
+                  "card-img-top tweet-image";
+
+                image.src =
+                  tweet.image_url;
+
+                image.alt =
+                  `Image posted by ${tweet.username}`;
+
+                card.appendChild(image);
               }
-              window.location.reload();
-            })
-            .catch((error) => {
-              alert("Error following user:", error);
-              console.error("Error following user:", error);
+
+
+              card.appendChild(cardBody);
+
+              tweetContainer.appendChild(card);
             });
-        });
-      });
+          }
 
 
-      document.querySelectorAll(".btn-unfollow").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var userId = this.getAttribute("data-user-id");
-          var currentUserId = "{{ userId }}";
-          console.log(userId, currentUserId)
-          console.log("userid", userId)
-          console.log("currentUserId", currentUserId)
-          fetch("/unfollow", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              user_id: userId,
-              current_user_id: currentUserId,
-            }),
-          })
-            .then((response) => {
+          function filterTweets() {
+            const searchTerm =
+              searchInput.value
+                .trim()
+                .toLowerCase();
+
+            const filteredTweets =
+              originalTweets.filter(
+                function (tweet) {
+                  const username =
+                    (tweet.username || "")
+                      .toLowerCase();
+
+                  const content =
+                    (tweet.content || "")
+                      .toLowerCase();
+
+                  return (
+                    username.includes(searchTerm) ||
+                    content.includes(searchTerm)
+                  );
+                }
+              );
+
+            renderTweets(filteredTweets);
+          }
+
+
+          async function followUser(button) {
+            const username =
+              button.getAttribute("data-user-id");
+
+            if (!username) {
+              return;
+            }
+
+            button.disabled = true;
+
+            try {
+              const response =
+                await fetch(
+                  "/follow",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+                    body: JSON.stringify({
+                      user_id: username,
+                    }),
+                  }
+                );
+
               if (!response.ok) {
-                throw new Error("Failed to unfollow user");
+                throw new Error(
+                  "Unable to follow user"
+                );
               }
+
               window.location.reload();
-            })
-            .catch((error) => {
-              alert("Error unfollowing user:", error)
-              console.error("Error unfollowing user:", error);
+
+            } catch (error) {
+              button.disabled = false;
+
+              alert(
+                "Unable to follow this user. Please try again."
+              );
+            }
+          }
+
+
+          async function unfollowUser(button) {
+            const username =
+              button.getAttribute("data-user-id");
+
+            if (!username) {
+              return;
+            }
+
+            button.disabled = true;
+
+            try {
+              const response =
+                await fetch(
+                  "/unfollow",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+                    },
+                    body: JSON.stringify({
+                      user_id: username,
+                    }),
+                  }
+                );
+
+              if (!response.ok) {
+                throw new Error(
+                  "Unable to unfollow user"
+                );
+              }
+
+              window.location.reload();
+
+            } catch (error) {
+              button.disabled = false;
+
+              alert(
+                "Unable to unfollow this user. Please try again."
+              );
+            }
+          }
+
+
+          searchInput.addEventListener(
+            "input",
+            filterTweets
+          );
+
+
+          document
+            .querySelectorAll(".btn-follow")
+            .forEach(function (button) {
+              button.addEventListener(
+                "click",
+                function () {
+                  followUser(button);
+                }
+              );
             });
-        });
-      });
 
 
-          });
+          document
+            .querySelectorAll(".btn-unfollow")
+            .forEach(function (button) {
+              button.addEventListener(
+                "click",
+                function () {
+                  unfollowUser(button);
+                }
+              );
+            });
+
+
+          renderTweets(tweets);
+        }
+      );
     </script>
   </body>
 </html>
