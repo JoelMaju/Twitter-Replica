@@ -24,7 +24,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
 
-window.addEventListener("load", function () {
+document.addEventListener("DOMContentLoaded", function ()  {
   updateUI(document.cookie);
 
   const loginButton = document.getElementById("login");
