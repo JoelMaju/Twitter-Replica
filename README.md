@@ -22,28 +22,32 @@ The application allows users to create accounts, post tweets with optional image
 
 ### Login & Sign Up
 
-<img width="1418" height="799" alt="Login page" src="https://github.com/user-attachments/assets/2d51f850-8ec5-406b-86a5-4b00097e2582" />
+<img width="1340" height="721" alt="Login and signup page" src="https://github.com/user-attachments/assets/a2fad37f-b56e-4549-ba90-98dc492ad86b" />
+
 
 
 ### Home Feed
+<img width="1402" height="686" alt="Home page" src="https://github.com/user-attachments/assets/13b3f4ad-232a-4192-9fde-b1c800f5b59f" />
 
-<img width="1417" height="664" alt="Home page" src="https://github.com/user-attachments/assets/0cb4a6f5-836d-490c-a88e-1ffa76b70b23" />
 
 ### Create Tweet
 
-<img width="1411" height="686" alt="Added tweet" src="https://github.com/user-attachments/assets/8d874854-d0a0-4b75-9ae7-d08cd2152f91" />
+<img width="1349" height="691" alt="Add tweet" src="https://github.com/user-attachments/assets/7650747a-c30d-4a15-a988-2a168d14bf4e" />
 
-<img width="1402" height="753" alt="tweet wih image" src="https://github.com/user-attachments/assets/bdc332f9-467e-4f03-8ebc-0e3f3ec8dbd1" />
 
 
 ### Follow & Unfollow Users
 
-<img width="1354" height="701" alt="Follow feature" src="https://github.com/user-attachments/assets/31d2488e-da2b-48fc-981f-b213938ffd26" />
+<img width="1314" height="764" alt="Unfollow users" src="https://github.com/user-attachments/assets/af4fb9dc-f254-4370-bb57-92bdc5ec27d2" />
+<img width="1268" height="766" alt="Follow users" src="https://github.com/user-attachments/assets/e3d1c10a-8cc9-4dc0-9f80-bf64988302fe" />
+
+
 
 
 ### User Profile
 
-<img width="1341" height="811" alt="User profile page" src="https://github.com/user-attachments/assets/e244f80f-e0db-4a4b-ab09-0c9e2aeeef86" />
+<img width="1286" height="808" alt="user profile" src="https://github.com/user-attachments/assets/71217228-bec5-4acd-ba07-bc462bfcfd66" />
+
 
 
 ---
